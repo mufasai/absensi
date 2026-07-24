@@ -6,6 +6,12 @@ import AdminSettings from "./AdminSettings";
 export default function AdminApp({ workSettings, setWorkSettings, onLogout }) {
   const [tab, setTab] = useState("dashboard");
 
+  const todayFormatted = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div className="min-h-screen font-body" style={{ backgroundColor: "#0B1D30" }}>
       <div className="max-w-3xl mx-auto px-5 pt-6 pb-10">
@@ -15,7 +21,7 @@ export default function AdminApp({ workSettings, setWorkSettings, onLogout }) {
               {tab === "dashboard" ? "Dashboard Admin" : "Pengaturan"}
             </p>
             <p className="text-sm" style={{ color: "#93A6BD" }}>
-              {tab === "dashboard" ? "Rekap kehadiran — 24 Juli 2026" : "Atur patokan jam kerja karyawan"}
+              {tab === "dashboard" ? `Rekap kehadiran — ${todayFormatted}` : "Atur patokan jam kerja karyawan"}
             </p>
           </div>
           <button

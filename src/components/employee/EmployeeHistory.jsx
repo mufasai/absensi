@@ -39,7 +39,7 @@ export default function EmployeeHistory({ currentUser }) {
         </button>
       </div>
       <p className="text-xs mb-4" style={{ color: "#93A6BD" }}>
-        Data Kehadiran Real dari Database Neon
+        Data Kehadiran
       </p>
 
       <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-none pb-1">
