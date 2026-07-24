@@ -100,7 +100,7 @@ export default function EmployeeHistory({ currentUser }) {
 
           {filtered.length === 0 && (
             <p className="text-center text-sm py-10" style={{ color: "#93A6BD" }}>
-              Belum ada riwayat data presensi di database.
+              Belum ada riwayat data presensi.
             </p>
           )}
         </div>
