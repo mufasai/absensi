@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.font-display { font-family: 'Sora', sans-serif; }
+.font-body { font-family: 'Inter', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+@keyframes stampPress {
+  0% { transform: scale(1) rotate(0deg); }
+  35% { transform: scale(0.88) rotate(-3deg); }
+  60% { transform: scale(1.05) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes ringPulse {
+  0% { box-shadow: 0 0 0 0 rgba(240,146,61,0.45); }
+  100% { box-shadow: 0 0 0 22px rgba(240,146,61,0); }
+}
+
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.stamp-press { animation: stampPress 0.45s cubic-bezier(.34,1.56,.64,1); }
+
+.stamp-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: ringPulse 1.8s ease-out infinite;
+}
+
+.fade-in-up { animation: fadeInUp 0.25s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-press, .stamp-ring::after { animation: none !important; }
+}
+
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
