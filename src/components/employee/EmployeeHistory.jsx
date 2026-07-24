@@ -62,7 +62,7 @@ export default function EmployeeHistory({ currentUser }) {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-sm" style={{ color: "#93A6BD" }}>
           <Loader2 size={24} className="animate-spin mb-2" />
-          <span>Memuat riwayat presensi dari database...</span>
+          <span>Memuat riwayat presensi...</span>
         </div>
       ) : (
         <div className="space-y-2.5">
