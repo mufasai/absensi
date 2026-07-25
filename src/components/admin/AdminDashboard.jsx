@@ -159,66 +159,62 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Responsive Clean Header Control Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5 max-w-full">
-          <button
-            type="button"
-            onClick={() => setActiveTab("attendance")}
-            className="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm shrink-0"
-            style={
-              activeTab === "attendance"
-                ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
-                : { backgroundColor: "#142C46", color: "#93A6BD", border: "1px solid rgba(147,166,189,0.15)" }
-            }
-          >
-            Presensi Hari Ini
-          </button>
+      {/* Row 1: Segmented Navigation Tab Switcher */}
+      <div className="grid grid-cols-2 gap-2 mb-3 p-1 rounded-2xl" style={{ backgroundColor: "#142C46", border: "1px solid rgba(147,166,189,0.15)" }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab("attendance")}
+          className="py-2.5 px-3 rounded-xl text-xs font-bold font-body transition-all text-center flex items-center justify-center gap-1.5"
+          style={
+            activeTab === "attendance"
+              ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
+              : { color: "#93A6BD" }
+          }
+        >
+          <span>Presensi Hari Ini</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("pending_leaves")}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm shrink-0"
-            style={
-              activeTab === "pending_leaves"
-                ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
-                : { backgroundColor: "#142C46", color: "#93A6BD", border: "1px solid rgba(147,166,189,0.15)" }
-            }
-          >
-            <span>Persetujuan Izin</span>
-            {pendingLeaves.length > 0 && (
-              <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-amber-400 text-slate-900">
-                {pendingLeaves.length}
-              </span>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("pending_leaves")}
+          className="py-2.5 px-3 rounded-xl text-xs font-bold font-body transition-all text-center flex items-center justify-center gap-1.5"
+          style={
+            activeTab === "pending_leaves"
+              ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
+              : { color: "#93A6BD" }
+          }
+        >
+          <span>Persetujuan Izin</span>
+          {pendingLeaves.length > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full font-bold bg-amber-400 text-slate-900">
+              {pendingLeaves.length}
+            </span>
+          )}
+        </button>
+      </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <button
-            type="button"
-            onClick={() => setShowLegend(!showLegend)}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
-            style={{ backgroundColor: "#142C46", color: "#56CCF2", border: "1px solid rgba(86,204,242,0.2)" }}
-            title="Legenda Warna Status"
-          >
-            <Info size={14} className="shrink-0" />
-            <span className="hidden sm:inline font-body">Legenda Status</span>
-          </button>
+      {/* Row 2: Action Controls Bar (Legenda Status & Refresh Data) */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setShowLegend(!showLegend)}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all"
+          style={{ backgroundColor: "#142C46", color: "#56CCF2", border: "1px solid rgba(86,204,242,0.2)" }}
+        >
+          <Info size={14} className="shrink-0" />
+          <span>Legenda Status</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={loading}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-transform active:scale-95"
-            style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-            <span>Refresh</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={loadData}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-transform active:scale-95"
+          style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
+        >
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+          <span>Refresh Data</span>
+        </button>
       </div>
 
       {/* Information Cards */}
