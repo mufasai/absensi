@@ -10,15 +10,29 @@ export default function EmployeeHistory({ currentUser }) {
   const [filter, setFilter] = useState("semua");
   const filters = ["semua", "Present", "Late", "Izin / Cuti"];
 
-  const loadHistory = async () => {
-    setLoading(true);
+  const loadHistory = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     const data = await fetchAbsensiHistory(currentUser?.id, currentUser?.name);
     setHistory(data || []);
-    setLoading(false);
+    if (!isSilent) setLoading(false);
   };
 
   useEffect(() => {
-    loadHistory();
+    loadHistory(false);
+
+    // Auto-fetch interval every 3 seconds for instant real-time sync
+    const interval = setInterval(() => {
+      loadHistory(true);
+    }, 3000);
+
+    // Refetch when tab gets focus
+    const handleFocus = () => loadHistory(true);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [currentUser]);
 
   const filtered = history.filter((h) => {
@@ -36,7 +50,7 @@ export default function EmployeeHistory({ currentUser }) {
           Riwayat Absensi
         </p>
         <button
-          onClick={loadHistory}
+          onClick={() => loadHistory(false)}
           disabled={loading}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg transition-transform active:scale-95"
           style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}

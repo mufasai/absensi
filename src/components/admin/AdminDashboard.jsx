@@ -64,8 +64,8 @@ export default function AdminDashboard() {
   });
   const [exporting, setExporting] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     const [dashRes, leavesRes] = await Promise.all([
       fetchAdminDashboard(),
       fetchPendingLeaves(),
@@ -79,11 +79,23 @@ export default function AdminDashboard() {
     if (leavesRes) {
       setPendingLeaves(leavesRes);
     }
-    setLoading(false);
+    if (!isSilent) setLoading(false);
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
+
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 3000);
+
+    const handleFocus = () => loadData(true);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const filteredTeam = teamList.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()));
