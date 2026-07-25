@@ -72,62 +72,71 @@ export default function EmployeeHistory({ currentUser }) {
           <span>Memuat riwayat presensi...</span>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {filtered.map((h, i) => {
             const approvalMeta = APPROVAL_STATUS_META[h.approval_status] || APPROVAL_STATUS_META.approved;
 
             return (
-              <div key={h.id || i} className="rounded-xl px-4 py-3.5" style={{ backgroundColor: "#142C46" }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays size={14} style={{ color: "#93A6BD" }} />
-                    <p className="text-sm font-semibold" style={{ color: "#F6F1E7" }}>
+              <div
+                key={h.id || i}
+                className="rounded-xl p-4 space-y-2.5 transition-all"
+                style={{ backgroundColor: "#142C46", border: "1px solid rgba(147,166,189,0.12)" }}
+              >
+                {/* Header Row: Date (Left) & Approval Badge (Right) */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <CalendarDays size={14} className="shrink-0" style={{ color: "#93A6BD" }} />
+                    <span className="text-sm font-bold whitespace-nowrap" style={{ color: "#F6F1E7" }}>
                       {h.date}
-                    </p>
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <StatusBadge status={h.status} />
-                    {h.approval_status && h.approval_status !== "approved" && (
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{ color: approvalMeta.color, backgroundColor: approvalMeta.bg }}
-                      >
-                        {approvalMeta.label}
-                      </span>
-                    )}
-                  </div>
+
+                  {h.approval_status && h.approval_status !== "approved" && (
+                    <span
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0"
+                      style={{ color: approvalMeta.color, backgroundColor: approvalMeta.bg, border: `1px solid ${approvalMeta.color}44` }}
+                    >
+                      {approvalMeta.label}
+                    </span>
+                  )}
                 </div>
 
+                {/* Status Category Badge */}
+                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <StatusBadge status={h.status} />
+                </div>
+
+                {/* Details / Keterangan */}
                 {h.keterangan ? (
-                  <p className="text-xs" style={{ color: "#93A6BD" }}>
-                    Keterangan: <span style={{ color: "#F6F1E7" }}>{h.keterangan}</span>
+                  <p className="text-xs leading-relaxed" style={{ color: "#93A6BD" }}>
+                    Keterangan: <span className="font-medium" style={{ color: "#F6F1E7" }}>{h.keterangan}</span>
                   </p>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs" style={{ color: "#93A6BD" }}>
-                    <span>Masuk: {h.in}</span>
-                    <span>Keluar: {h.out}</span>
-                    <span>Durasi: {h.duration}</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs" style={{ color: "#93A6BD" }}>
+                    <span>Masuk: <strong style={{ color: "#F6F1E7" }}>{h.in}</strong></span>
+                    <span>Keluar: <strong style={{ color: "#F6F1E7" }}>{h.out}</strong></span>
+                    <span>Durasi: <strong style={{ color: "#F0923D" }}>{h.duration}</strong></span>
                   </div>
                 )}
 
                 {/* Decline Reason Display */}
                 {h.approval_status === "declined" && h.decline_reason && (
                   <div
-                    className="mt-2.5 p-2.5 rounded-lg text-xs flex items-start gap-1.5"
+                    className="p-2.5 rounded-xl text-xs flex items-start gap-2"
                     style={{ backgroundColor: "rgba(235,87,87,0.12)", color: "#EB5757", border: "1px solid rgba(235,87,87,0.2)" }}
                   >
-                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-semibold block">Alasan Penolakan Admin:</span>
-                      <span>{h.decline_reason}</span>
+                      <span className="font-bold block">Alasan Penolakan Admin:</span>
+                      <span className="leading-snug">{h.decline_reason}</span>
                     </div>
                   </div>
                 )}
 
                 {h.location && (
-                  <div className="flex items-center gap-1 mt-2 text-xs" style={{ color: "#93A6BD" }}>
-                    <MapPin size={11} />
-                    <span>{h.location}</span>
+                  <div className="flex items-center gap-1 text-xs" style={{ color: "#93A6BD" }}>
+                    <MapPin size={11} className="shrink-0" />
+                    <span className="truncate">{h.location}</span>
                   </div>
                 )}
               </div>
