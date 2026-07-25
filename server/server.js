@@ -81,6 +81,13 @@ async function initDatabase() {
       console.log("⚡ Skema Database PostgreSQL Neon Berhasil Dibuat/Diverifikasi.");
     }
 
+    // Auto upgrade status column length & new columns
+    await query("ALTER TABLE absensi ALTER COLUMN status TYPE VARCHAR(100);");
+    await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ;");
+    await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;");
+    await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'approved';");
+    await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS decline_reason TEXT;");
+
     const adminEmail = "admin@sasta.com";
     const result = await query("SELECT * FROM users WHERE email = $1", [adminEmail]);
     const salt = await bcrypt.genSalt(10);
