@@ -18,11 +18,8 @@ export const EMPLOYEE = {
 };
 
 export const IZIN_TYPES = [
-  "Excused absence (1 Day)",
-  "Excused absence (Half Day)",
-  "Unexcused absence",
-  "Day Off",
-  "Sick",
+  "Cuti Tahunan",
+  "Sakit",
   "Work From Anywhere/Home",
   "Out of Office (Work)",
 ];
@@ -38,7 +35,8 @@ export const STATUS_META = {
   telat: { label: "Late", color: "#F2C94C", bg: "rgba(242, 201, 76, 0.18)", Icon: AlertCircle },
   Late: { label: "Late", color: "#F2C94C", bg: "rgba(242, 201, 76, 0.18)", Icon: AlertCircle },
 
-  // 3. Excused absence (1 Day)
+  // 3. Excused absence (1 Day) / Cuti
+  "Cuti Tahunan": { label: "Excused absence (1 Day)", color: "#56CCF2", bg: "rgba(86, 204, 242, 0.18)", Icon: FileText },
   excused_1day: { label: "Excused absence (1 Day)", color: "#56CCF2", bg: "rgba(86, 204, 242, 0.18)", Icon: FileText },
   "Excused absence (1 Day)": { label: "Excused absence (1 Day)", color: "#56CCF2", bg: "rgba(86, 204, 242, 0.18)", Icon: FileText },
   izin: { label: "Excused absence (1 Day)", color: "#56CCF2", bg: "rgba(86, 204, 242, 0.18)", Icon: FileText },
@@ -56,40 +54,42 @@ export const STATUS_META = {
   day_off: { label: "Day Off", color: "#A8DADC", bg: "rgba(168, 218, 220, 0.18)", Icon: Coffee },
   "Day Off": { label: "Day Off", color: "#A8DADC", bg: "rgba(168, 218, 220, 0.18)", Icon: Coffee },
 
-  // 7. Sick
+  // 7. Sick / Sakit
+  Sakit: { label: "Sick", color: "#F2994A", bg: "rgba(242, 153, 74, 0.18)", Icon: HeartPulse },
   sick: { label: "Sick", color: "#F2994A", bg: "rgba(242, 153, 74, 0.18)", Icon: HeartPulse },
   "Sick": { label: "Sick", color: "#F2994A", bg: "rgba(242, 153, 74, 0.18)", Icon: HeartPulse },
   sakit: { label: "Sick", color: "#F2994A", bg: "rgba(242, 153, 74, 0.18)", Icon: HeartPulse },
 
   // 8. Work From Anywhere/Home
-  wfh: { label: "Work From Anywhere/Home", color: "#BB6BD9", bg: "rgba(187, 107, 217, 0.18)", Icon: Home },
   "Work From Anywhere/Home": { label: "Work From Anywhere/Home", color: "#BB6BD9", bg: "rgba(187, 107, 217, 0.18)", Icon: Home },
+  wfh: { label: "Work From Anywhere/Home", color: "#BB6BD9", bg: "rgba(187, 107, 217, 0.18)", Icon: Home },
 
   // 9. Out of Office (Work)
-  out_of_office: { label: "Out of Office (Work)", color: "#E07A5F", bg: "rgba(224, 122, 95, 0.18)", Icon: Briefcase },
   "Out of Office (Work)": { label: "Out of Office (Work)", color: "#E07A5F", bg: "rgba(224, 122, 95, 0.18)", Icon: Briefcase },
+  out_of_office: { label: "Out of Office (Work)", color: "#E07A5F", bg: "rgba(224, 122, 95, 0.18)", Icon: Briefcase },
 
   // 10. Default Belum Hadir
   belum_absen: { label: "Belum Hadir", color: "#93A6BD", bg: "rgba(147, 166, 189, 0.14)", Icon: Clock },
+};
+
+export const APPROVAL_STATUS_META = {
+  pending: { label: "Menunggu Persetujuan", color: "#F2C94C", bg: "rgba(242, 201, 76, 0.18)" },
+  approved: { label: "Disetujui", color: "#61BE7D", bg: "rgba(97, 190, 125, 0.18)" },
+  declined: { label: "Ditolak", color: "#EB5757", bg: "rgba(235, 87, 87, 0.18)" },
 };
 
 export const INITIAL_HISTORY = [
   { date: "24 Jul 2026", in: "08:52", out: "17:41", status: "Present", duration: "8j 49m", location: "Kantor Pusat, Jakarta Selatan", keterangan: null },
   { date: "23 Jul 2026", in: "09:14", out: "17:30", status: "Late", duration: "8j 16m", location: "Kantor Pusat, Jakarta Selatan", keterangan: null },
   { date: "22 Jul 2026", in: "08:47", out: "17:38", status: "Present", duration: "8j 51m", location: "Kantor Pusat, Jakarta Selatan", keterangan: null },
-  { date: "21 Jul 2026", in: "—", out: "—", status: "Excused absence (1 Day)", duration: "—", location: null, keterangan: "Cuti Tahunan" },
-  { date: "20 Jul 2026", in: "08:55", out: "17:33", status: "Present", duration: "8j 38m", location: "Kantor Pusat, Jakarta Selatan", keterangan: null },
-  { date: "19 Jul 2026", in: "09:22", out: "17:29", status: "Late", duration: "8j 07m", location: "Kantor Pusat, Jakarta Selatan", keterangan: null },
-  { date: "18 Jul 2026", in: "—", out: "—", status: "Unexcused absence", duration: "—", location: null, keterangan: "Tanpa Keterangan" },
+  { date: "21 Jul 2026", in: "—", out: "—", status: "Cuti Tahunan", duration: "—", location: null, keterangan: "Cuti Tahunan", approval_status: "approved" },
 ];
 
 export const TEAM = [
   { name: "Dimas Prayoga", in: "08:52", status: "Present", location: "Kantor Pusat, Jakarta Selatan" },
   { name: "Rani Kusuma", in: "08:41", status: "Present", location: "Kantor Pusat, Jakarta Selatan" },
   { name: "Yusuf Hakim", in: "09:18", status: "Late", location: "Kantor Pusat, Jakarta Selatan" },
-  { name: "Wulan Sari", in: "—", status: "Sick", location: null, keterangan: "Sakit" },
+  { name: "Wulan Sari", in: "—", status: "Sakit", location: null, keterangan: "Sakit" },
   { name: "Andra Wijaya", in: "08:49", status: "Work From Anywhere/Home", location: "WFH — Bekasi" },
   { name: "Citra Ayu", in: "—", status: "belum_absen", location: null, keterangan: "Belum Hadir" },
-  { name: "Fajar Nugroho", in: "08:58", status: "Present", location: "Kantor Pusat, Jakarta Selatan" },
-  { name: "Made Surya", in: "09:31", status: "Late", location: "WFH — Jakarta Timur" },
 ];

@@ -234,7 +234,7 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// 3. API Admin Dashboard Real Data (Belum Hadir default for un-absented users)
+// 3. API Admin Dashboard Real Data
 app.get("/api/admin/dashboard", async (req, res) => {
   let dbUsers = [];
   let dbAbsensi = [];
@@ -251,9 +251,9 @@ app.get("/api/admin/dashboard", async (req, res) => {
     console.warn("Neon DB query dashboard:", err.message);
   }
 
-  const hadirCount = dbAbsensi.filter((a) => a.status === "hadir").length;
-  const telatCount = dbAbsensi.filter((a) => a.status === "telat").length;
-  const izinCount = dbAbsensi.filter((a) => a.status === "izin").length;
+  const hadirCount = dbAbsensi.filter((a) => a.status === "Present" || a.status === "hadir").length;
+  const telatCount = dbAbsensi.filter((a) => a.status === "Late" || a.status === "telat").length;
+  const izinCount = dbAbsensi.filter((a) => a.status !== "Present" && a.status !== "hadir" && a.status !== "Late" && a.status !== "telat" && a.status !== "belum_absen").length;
 
   const teamList = dbUsers
     .filter((u) => u.role !== "admin")
@@ -270,6 +270,8 @@ app.get("/api/admin/dashboard", async (req, res) => {
           status: absensi.status,
           location: absensi.location,
           keterangan: absensi.keterangan,
+          approval_status: absensi.approval_status || "approved",
+          decline_reason: absensi.decline_reason,
         };
       } else {
         return {
@@ -280,6 +282,7 @@ app.get("/api/admin/dashboard", async (req, res) => {
           status: "belum_absen",
           location: null,
           keterangan: "Belum Hadir",
+          approval_status: "approved",
         };
       }
     });
@@ -330,30 +333,118 @@ app.get("/api/absensi/history", async (req, res) => {
 
   const formattedHistory = historyRecords.map((row) => ({
     id: row.id,
-    date: formatDateWIB(row.date || row.created_at),
+    date: formatDateWIB(row.date || row.start_date || row.created_at),
     in: formatTimeWIB(row.check_in),
     out: formatTimeWIB(row.check_out),
     status: row.status,
     duration: row.duration || "—",
     location: row.location,
     keterangan: row.keterangan,
+    approval_status: row.approval_status || "approved",
+    decline_reason: row.decline_reason,
+    start_date: row.start_date,
+    end_date: row.end_date,
   }));
 
   return res.json({ success: true, history: formattedHistory });
 });
 
-// 5. API Check-In
+// 5. API Check-In Guard & Status
+app.get("/api/absensi/today-leave", async (req, res) => {
+  const { userId, userName } = req.query;
+  try {
+    let result;
+    if (userId && isUUID(userId)) {
+      result = await query(
+        `SELECT * FROM absensi 
+         WHERE user_id = $1 
+           AND status NOT IN ('Present', 'Late', 'hadir', 'telat', 'belum_absen')
+           AND approval_status IN ('pending', 'approved')
+           AND (
+             date = CURRENT_DATE 
+             OR (start_date::date <= CURRENT_DATE AND end_date::date >= CURRENT_DATE)
+           )
+         LIMIT 1`,
+        [userId]
+      );
+    } else if (userName) {
+      result = await query(
+        `SELECT * FROM absensi 
+         WHERE user_name = $1 
+           AND status NOT IN ('Present', 'Late', 'hadir', 'telat', 'belum_absen')
+           AND approval_status IN ('pending', 'approved')
+           AND (
+             date = CURRENT_DATE 
+             OR (start_date::date <= CURRENT_DATE AND end_date::date >= CURRENT_DATE)
+           )
+         LIMIT 1`,
+        [userName]
+      );
+    }
+
+    if (result && result.rows.length > 0) {
+      return res.json({ hasLeaveToday: true, leave: result.rows[0] });
+    }
+  } catch (err) {
+    console.warn("DB today-leave query:", err.message);
+  }
+  return res.json({ hasLeaveToday: false });
+});
+
+// 6. API Check-In
 app.post("/api/absensi/checkin", async (req, res) => {
   const { userId, userName, status, location, latitude, longitude } = req.body;
   const validUserId = isUUID(userId) ? userId : null;
   const nowISO = new Date().toISOString();
 
+  // Guard: Check if user has an active leave for today
+  try {
+    let leaveCheck;
+    if (validUserId) {
+      leaveCheck = await query(
+        `SELECT * FROM absensi 
+         WHERE user_id = $1 
+           AND status NOT IN ('Present', 'Late', 'hadir', 'telat', 'belum_absen')
+           AND approval_status IN ('pending', 'approved')
+           AND (
+             date = CURRENT_DATE 
+             OR (start_date::date <= CURRENT_DATE AND end_date::date >= CURRENT_DATE)
+           )
+         LIMIT 1`,
+        [validUserId]
+      );
+    } else if (userName) {
+      leaveCheck = await query(
+        `SELECT * FROM absensi 
+         WHERE user_name = $1 
+           AND status NOT IN ('Present', 'Late', 'hadir', 'telat', 'belum_absen')
+           AND approval_status IN ('pending', 'approved')
+           AND (
+             date = CURRENT_DATE 
+             OR (start_date::date <= CURRENT_DATE AND end_date::date >= CURRENT_DATE)
+           )
+         LIMIT 1`,
+        [userName]
+      );
+    }
+
+    if (leaveCheck && leaveCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Anda hari ini mengajukan izin, tidak bisa melakukan checkin.",
+        leave: leaveCheck.rows[0],
+      });
+    }
+  } catch (e) {
+    console.warn("Checkin leave guard check:", e.message);
+  }
+
   try {
     const result = await query(
-      `INSERT INTO absensi (user_id, user_name, date, check_in, status, location, latitude, longitude, is_active)
-       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, TRUE)
+      `INSERT INTO absensi (user_id, user_name, date, check_in, status, location, latitude, longitude, is_active, approval_status)
+       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, TRUE, 'approved')
        RETURNING *`,
-      [validUserId, userName, nowISO, status || "hadir", location, latitude || null, longitude || null]
+      [validUserId, userName, nowISO, status || "Present", location, latitude || null, longitude || null]
     );
 
     const record = result.rows[0];
@@ -368,9 +459,10 @@ app.post("/api/absensi/checkin", async (req, res) => {
       user_name: userName,
       date: new Date().toISOString().split("T")[0],
       check_in: nowISO,
-      status: status || "hadir",
+      status: status || "Present",
       location: location,
       is_active: true,
+      approval_status: "approved",
     };
 
     LOCAL_ABSENSI_STORE.unshift(localRecord);
@@ -378,7 +470,7 @@ app.post("/api/absensi/checkin", async (req, res) => {
   }
 });
 
-// 6. API Check-Out
+// 7. API Check-Out
 app.post("/api/absensi/checkout", async (req, res) => {
   const { absensiId, userId, duration } = req.body;
   const validAbsensiId = isUUID(absensiId) ? absensiId : null;
@@ -420,22 +512,46 @@ app.post("/api/absensi/checkout", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 7. API Submit Leave / Izin
+// 8. API Submit Leave / Izin (With Date Picker & H-1 Notice Validation)
 app.post("/api/absensi/izin", async (req, res) => {
-  const { userId, userName, type, note } = req.body;
+  const { userId, userName, type, note, startDate, endDate } = req.body;
   const validUserId = isUUID(userId) ? userId : null;
+
+  if (!startDate) {
+    return res.status(400).json({ success: false, message: "Tanggal izin wajib dipilih." });
+  }
+
+  // H-1 Validation Rule (Except 'Sakit')
+  const selectedStart = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (type !== "Sakit" && type !== "sakit") {
+    const minNoticeDate = new Date(today);
+    minNoticeDate.setDate(minNoticeDate.getDate() + 1); // Tomorrow
+
+    if (selectedStart < minNoticeDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Pengajuan izin selain Sakit wajib diajukan minimal H-1 (mulai besok).",
+      });
+    }
+  }
+
   const ket = note ? `${type} — ${note}` : type;
+  const finalStart = selectedStart.toISOString();
+  const finalEnd = endDate ? new Date(endDate).toISOString() : finalStart;
 
   try {
     const result = await query(
-      `INSERT INTO absensi (user_id, user_name, date, status, keterangan, is_active)
-       VALUES ($1, $2, CURRENT_DATE, 'izin', $3, FALSE)
+      `INSERT INTO absensi (user_id, user_name, date, status, keterangan, is_active, start_date, end_date, approval_status)
+       VALUES ($1, $2, $3::date, $4, $5, FALSE, $6, $7, 'pending')
        RETURNING *`,
-      [validUserId, userName, ket]
+      [validUserId, userName, startDate, type, ket, finalStart, finalEnd]
     );
 
     const record = result.rows[0];
-    console.log("✅ Pengajuan Izin Berhasil Disimpan ke Neon DB:", record.id);
+    console.log("✅ Pengajuan Izin Berhasil Disimpan ke Neon DB (Pending):", record.id);
     return res.json({ success: true, absensi: record });
   } catch (err) {
     console.warn("📌 Izin DB Error:", err.message);
@@ -444,10 +560,13 @@ app.post("/api/absensi/izin", async (req, res) => {
       id: "izin-" + Date.now(),
       user_id: userId,
       user_name: userName,
-      date: new Date().toISOString().split("T")[0],
-      status: "izin",
+      date: startDate,
+      status: type,
       keterangan: ket,
       is_active: false,
+      start_date: finalStart,
+      end_date: finalEnd,
+      approval_status: "pending",
     };
 
     LOCAL_ABSENSI_STORE.unshift(localRecord);
@@ -455,7 +574,74 @@ app.post("/api/absensi/izin", async (req, res) => {
   }
 });
 
-// 8. API Work Settings
+// 9. API Admin Get Pending Leave Requests
+app.get("/api/admin/leaves", async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM absensi WHERE approval_status = 'pending' ORDER BY created_at DESC`
+    );
+    return res.json({ success: true, leaves: result.rows });
+  } catch (err) {
+    console.warn("Get pending leaves error:", err.message);
+    const pendingLocal = LOCAL_ABSENSI_STORE.filter((a) => a.approval_status === "pending");
+    return res.json({ success: true, leaves: pendingLocal });
+  }
+});
+
+// 10. API Admin Approve Leave Request
+app.post("/api/admin/leaves/approve", async (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ success: false, message: "ID absensi wajib dikirim." });
+
+  try {
+    if (isUUID(id)) {
+      const result = await query(
+        `UPDATE absensi SET approval_status = 'approved' WHERE id = $1 RETURNING *`,
+        [id]
+      );
+      if (result.rows.length > 0) {
+        return res.json({ success: true, absensi: result.rows[0] });
+      }
+    }
+  } catch (err) {
+    console.warn("Approve leave DB error:", err.message);
+  }
+
+  const localItem = LOCAL_ABSENSI_STORE.find((a) => a.id === id);
+  if (localItem) {
+    localItem.approval_status = "approved";
+  }
+  return res.json({ success: true, absensi: localItem || null });
+});
+
+// 11. API Admin Decline Leave Request (With Decline Reason)
+app.post("/api/admin/leaves/decline", async (req, res) => {
+  const { id, reason } = req.body;
+  if (!id) return res.status(400).json({ success: false, message: "ID absensi wajib dikirim." });
+
+  try {
+    if (isUUID(id)) {
+      const result = await query(
+        `UPDATE absensi SET approval_status = 'declined', decline_reason = $2 WHERE id = $1 RETURNING *`,
+        [id, reason || "Tidak mendapatkan izin"]
+      );
+      if (result.rows.length > 0) {
+        return res.json({ success: true, absensi: result.rows[0] });
+      }
+    }
+  } catch (err) {
+    console.warn("Decline leave DB error:", err.message);
+  }
+
+  const localItem = LOCAL_ABSENSI_STORE.find((a) => a.id === id);
+  if (localItem) {
+    localItem.approval_status = "declined";
+    localItem.decline_reason = reason || "Tidak mendapatkan izin";
+  }
+  return res.json({ success: true, absensi: localItem || null });
+});
+
+// 12. API Work Settings
 app.get("/api/settings", async (req, res) => {
   try {
     const result = await query("SELECT * FROM work_settings WHERE id = 1");

@@ -1,10 +1,55 @@
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { X, Calendar, AlertCircle } from "lucide-react";
 import { IZIN_TYPES } from "../../constants/dummyData";
 
 export default function IzinModal({ onClose, onSubmit }) {
+  const getTomorrowStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
+  const getTodayStr = () => {
+    return new Date().toISOString().split("T")[0];
+  };
+
   const [type, setType] = useState(IZIN_TYPES[0]);
+  const [startDate, setStartDate] = useState(getTomorrowStr());
+  const [endDate, setEndDate] = useState(getTomorrowStr());
   const [note, setNote] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleTypeChange = (newType) => {
+    setType(newType);
+    setErrorMsg("");
+    if (newType === "Sakit") {
+      setStartDate(getTodayStr());
+      setEndDate(getTodayStr());
+    } else {
+      setStartDate(getTomorrowStr());
+      setEndDate(getTomorrowStr());
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    const todayStr = getTodayStr();
+
+    // H-1 Validation Rule (Except 'Sakit')
+    if (type !== "Sakit" && startDate <= todayStr) {
+      setErrorMsg("Pengajuan izin selain Sakit wajib diajukan minimal H-1 (mulai besok).");
+      return;
+    }
+
+    if (endDate && endDate < startDate) {
+      setErrorMsg("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+      return;
+    }
+
+    onSubmit(type, note, startDate, endDate || startDate);
+  };
 
   return (
     <div
@@ -19,31 +64,81 @@ export default function IzinModal({ onClose, onSubmit }) {
       >
         <div className="flex items-center justify-between mb-4">
           <p className="font-display font-bold text-base" style={{ color: "#F6F1E7" }}>
-            Ajukan Izin / Dispensasi
+            Ajukan Izin
           </p>
           <button onClick={onClose}>
             <X size={18} style={{ color: "#93A6BD" }} />
           </button>
         </div>
 
+        {errorMsg && (
+          <div
+            className="flex items-start gap-2 p-3 rounded-xl mb-4 text-xs font-semibold"
+            style={{ backgroundColor: "rgba(235,87,87,0.15)", color: "#EB5757", border: "1px solid rgba(235,87,87,0.3)" }}
+          >
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         <label className="text-xs font-semibold mb-2 block" style={{ color: "#93A6BD" }}>
-          Pilih Kategori Status
+          Jenis Izin
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 max-h-48 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
           {IZIN_TYPES.map((t) => (
             <button
               key={t}
-              onClick={() => setType(t)}
-              className="px-3 py-2 rounded-lg text-xs font-semibold font-body text-left transition-all flex items-center justify-between"
+              type="button"
+              onClick={() => handleTypeChange(t)}
+              className="px-3 py-2.5 rounded-lg text-xs font-semibold font-body text-left transition-all truncate"
               style={
                 type === t
                   ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
                   : { backgroundColor: "#1E3A5C", color: "#93A6BD" }
               }
             >
-              <span className="truncate">{t}</span>
+              {t}
             </button>
           ))}
+        </div>
+
+        {/* Date Selection */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="text-xs font-semibold mb-1 flex items-center gap-1" style={{ color: "#93A6BD" }}>
+              <Calendar size={12} />
+              <span>Tanggal Mulai</span>
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (endDate < e.target.value) setEndDate(e.target.value);
+                setErrorMsg("");
+              }}
+              min={type === "Sakit" ? undefined : getTomorrowStr()}
+              className="w-full px-3 py-2 rounded-xl text-xs font-body outline-none"
+              style={{ backgroundColor: "#1E3A5C", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold mb-1 flex items-center gap-1" style={{ color: "#93A6BD" }}>
+              <Calendar size={12} />
+              <span>Tanggal Selesai</span>
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setErrorMsg("");
+              }}
+              min={startDate}
+              className="w-full px-3 py-2 rounded-xl text-xs font-body outline-none"
+              style={{ backgroundColor: "#1E3A5C", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
+            />
+          </div>
         </div>
 
         <label className="text-xs font-semibold mb-1.5 block" style={{ color: "#93A6BD" }}>
@@ -52,18 +147,19 @@ export default function IzinModal({ onClose, onSubmit }) {
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          rows={3}
-          placeholder="Tuliskan keterangan detail..."
-          className="w-full mb-5 px-3 py-2.5 rounded-xl text-sm font-body outline-none resize-none"
+          rows={2}
+          placeholder="Tuliskan keterangan detail pengajuan..."
+          className="w-full mb-5 px-3 py-2.5 rounded-xl text-xs font-body outline-none resize-none"
           style={{ backgroundColor: "#1E3A5C", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
         />
 
         <button
-          onClick={() => onSubmit(type, note)}
-          className="w-full py-3 rounded-xl font-display font-semibold text-sm transition-transform active:scale-95"
+          type="button"
+          onClick={handleSubmit}
+          className="w-full py-3 rounded-xl font-display font-semibold text-sm transition-transform active:scale-95 shadow-md"
           style={{ background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }}
         >
-          Kirim Pengajuan
+          Ajukan Izin
         </button>
       </div>
     </div>

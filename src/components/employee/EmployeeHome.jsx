@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Clock, MapPin, Loader2 } from "lucide-react";
+import { Clock, MapPin, Loader2, AlertTriangle, X } from "lucide-react";
 import Avatar from "../common/Avatar";
 import StatusBadge from "../common/StatusBadge";
 import IzinModal from "../modals/IzinModal";
 import { timeStrToMinutes } from "../../utils/timeUtils";
 import { requestLocationPermission, getStreetAddress } from "../../services/location";
-import { postCheckIn, postCheckOut, postIzin, fetchAbsensiHistory, fetchWorkSettings } from "../../services/api";
+import {
+  postCheckIn,
+  postCheckOut,
+  postIzin,
+  fetchAbsensiHistory,
+  fetchWorkSettings,
+  checkTodayLeave,
+} from "../../services/api";
 
 const ACTIVE_SESSION_KEY = "absensi_active_checkin_session";
 
@@ -20,32 +27,30 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(false);
   const [showIzin, setShowIzin] = useState(false);
+  const [showCheckInBlockedModal, setShowCheckInBlockedModal] = useState(false);
+  const [blockedLeaveDetail, setBlockedLeaveDetail] = useState(null);
   const [recentHistory, setRecentHistory] = useState([]);
   const [currentSettings, setCurrentSettings] = useState(workSettings || { jamMasuk: "09:00", toleransi: 15 });
 
   const userName = currentUser?.name || "Karyawan";
   const userInitials = currentUser?.initials || userName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
-  // Load recent history belonging STRICTLY to current user from Neon DB
   const loadRecentHistory = async () => {
     const data = await fetchAbsensiHistory(currentUser?.id, currentUser?.name);
     setRecentHistory(data.slice(0, 4));
   };
 
-  // Sync prop changes or fetch fresh work settings
   useEffect(() => {
     if (workSettings) {
       setCurrentSettings(workSettings);
     }
   }, [workSettings]);
 
-  // 1. Clock Timer (Memperbarui setiap 1 detik secara live)
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // 2. Prompt Location & Restore Session & Load Settings
   useEffect(() => {
     async function loadFreshSettings() {
       const data = await fetchWorkSettings();
@@ -82,7 +87,6 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
   const toleransi = currentSettings?.toleransi || 15;
   const batasMasuk = timeStrToMinutes(jamMasuk) + Number(toleransi);
 
-  // Live Timer: Hitung durasi jam, menit, dan detik secara real-time setiap detik!
   const elapsed = useMemo(() => {
     if (!checkedIn || !checkInTime) return "0j 00m 00s";
     const diffMs = Math.max(0, now.getTime() - checkInTime.getTime());
@@ -99,7 +103,14 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
     const currentTimeStamp = new Date();
 
     if (!checkedIn) {
-      // CHECK IN REAL TO NEON DB
+      // 1. Guard Check: Today Leave Check
+      const leaveRes = await checkTodayLeave(currentUser?.id, currentUser?.name);
+      if (leaveRes && leaveRes.hasLeaveToday) {
+        setBlockedLeaveDetail(leaveRes.leave);
+        setShowCheckInBlockedModal(true);
+        return;
+      }
+
       setLocating(true);
       const locResult = await requestLocationPermission();
       let streetName = "Kantor Pusat, Jakarta";
@@ -116,7 +127,6 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
       const nowMinutes = currentTimeStamp.getHours() * 60 + currentTimeStamp.getMinutes();
       const status = nowMinutes > batasMasuk ? "Late" : "Present";
 
-      // Call API Check-in
       const apiRes = await postCheckIn({
         userId: currentUser?.id,
         userName: userName,
@@ -125,6 +135,12 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
         latitude: locResult.lat || null,
         longitude: locResult.lng || null,
       });
+
+      if (apiRes && apiRes.success === false && apiRes.message?.includes("mengajukan izin")) {
+        setBlockedLeaveDetail(apiRes.leave || null);
+        setShowCheckInBlockedModal(true);
+        return;
+      }
 
       const dbAbsensiId = apiRes && apiRes.absensi ? apiRes.absensi.id : null;
 
@@ -181,13 +197,21 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
     }
   };
 
-  const handleIzinSubmit = async (type, note) => {
-    await postIzin({
+  const handleIzinSubmit = async (type, note, startDate, endDate) => {
+    const res = await postIzin({
       userId: currentUser?.id,
       userName: userName,
       type: type,
       note: note,
+      startDate: startDate,
+      endDate: endDate,
     });
+
+    if (res && res.success === false && res.message) {
+      alert(res.message);
+      return;
+    }
+
     setShowIzin(false);
     loadRecentHistory();
   };
@@ -195,6 +219,38 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
   return (
     <div className="px-5 pt-6 pb-4">
       {showIzin && <IzinModal onClose={() => setShowIzin(false)} onSubmit={handleIzinSubmit} />}
+
+      {/* Popup Modal Guard: Block Check-in when on leave */}
+      {showCheckInBlockedModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ backgroundColor: "rgba(11,29,48,0.8)" }}
+          onClick={() => setShowCheckInBlockedModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl p-5 text-center fade-in-up"
+            style={{ backgroundColor: "#142C46", border: "1px solid rgba(235,87,87,0.3)" }}
+          >
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: "rgba(235,87,87,0.15)", color: "#EB5757" }}>
+              <AlertTriangle size={24} />
+            </div>
+            <p className="font-display font-bold text-sm mb-2" style={{ color: "#F6F1E7" }}>
+              Tidak Bisa Check In
+            </p>
+            <p className="text-xs mb-5" style={{ color: "#93A6BD" }}>
+              Anda hari ini mengajukan izin, tidak bisa melakukan checkin.
+            </p>
+            <button
+              onClick={() => setShowCheckInBlockedModal(false)}
+              className="w-full py-2.5 rounded-xl font-display font-semibold text-xs transition-transform active:scale-95"
+              style={{ background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }}
+            >
+              Saya Mengerti
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -285,10 +341,10 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
 
       <button
         onClick={() => setShowIzin(true)}
-        className="w-full py-2.5 rounded-xl font-display font-semibold text-xs mb-6 transition-transform active:scale-95"
-        style={{ backgroundColor: "#142C46", color: "#93A6BD", border: "1px solid rgba(147,166,189,0.15)" }}
+        className="w-full py-2.5 rounded-xl font-display font-semibold text-xs mb-6 transition-transform active:scale-95 shadow-sm"
+        style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.2)" }}
       >
-        Ajukan Izin / Cuti
+        Ajukan Izin
       </button>
 
       <div className="flex items-center justify-between mb-3">

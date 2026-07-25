@@ -62,6 +62,22 @@ export async function fetchAbsensiHistory(userId, userName) {
   }
 }
 
+export async function checkTodayLeave(userId, userName) {
+  try {
+    let url = `${API_BASE_URL}/absensi/today-leave`;
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", userId);
+    if (userName) params.append("userName", userName);
+    if (params.toString()) url += `?${params.toString()}`;
+
+    const res = await fetch(url);
+    return await res.json();
+  } catch (err) {
+    console.warn("API Error checkTodayLeave:", err.message);
+    return { hasLeaveToday: false };
+  }
+}
+
 export async function postCheckIn(payload) {
   try {
     const res = await fetch(`${API_BASE_URL}/absensi/checkin`, {
@@ -72,7 +88,7 @@ export async function postCheckIn(payload) {
     return await res.json();
   } catch (err) {
     console.warn("API Error postCheckIn:", err.message);
-    return { success: false };
+    return { success: false, message: err.message };
   }
 }
 
@@ -100,6 +116,45 @@ export async function postIzin(payload) {
     return await res.json();
   } catch (err) {
     console.warn("API Error postIzin:", err.message);
+    return { success: false, message: err.message };
+  }
+}
+
+export async function fetchPendingLeaves() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/leaves`);
+    const data = await res.json();
+    return data.leaves || [];
+  } catch (err) {
+    console.warn("API Error fetchPendingLeaves:", err.message);
+    return [];
+  }
+}
+
+export async function approveLeave(id) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/leaves/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn("API Error approveLeave:", err.message);
+    return { success: false };
+  }
+}
+
+export async function declineLeave(id, reason) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/leaves/decline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, reason }),
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn("API Error declineLeave:", err.message);
     return { success: false };
   }
 }

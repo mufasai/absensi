@@ -35,15 +35,25 @@ CREATE TABLE IF NOT EXISTS absensi (
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   check_in TIMESTAMPTZ,
   check_out TIMESTAMPTZ,
-  status VARCHAR(20) NOT NULL, -- 'hadir', 'telat', 'izin', 'alpha'
+  status VARCHAR(50) NOT NULL, -- 'Present', 'Late', 'Cuti Tahunan', 'Sakit', 'Work From Anywhere/Home', 'Out of Office (Work)', 'belum_absen'
   duration VARCHAR(30),
   location TEXT,
   latitude NUMERIC(10, 7),
   longitude NUMERIC(10, 7),
   keterangan TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  approval_status VARCHAR(20) DEFAULT 'approved', -- 'pending', 'approved', 'declined'
+  decline_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Auto Add New Columns to Absensi if upgrading schema
+ALTER TABLE absensi ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ;
+ALTER TABLE absensi ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
+ALTER TABLE absensi ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'approved';
+ALTER TABLE absensi ADD COLUMN IF NOT EXISTS decline_reason TEXT;
 
 -- Sample Initial Users
 INSERT INTO users (name, email, password_hash, role, initials, employee_code)
