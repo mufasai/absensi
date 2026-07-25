@@ -159,26 +159,31 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      {/* Responsive Clean Header Control Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5 max-w-full">
           <button
+            type="button"
             onClick={() => setActiveTab("attendance")}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm shrink-0"
             style={
               activeTab === "attendance"
                 ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
-                : { backgroundColor: "#142C46", color: "#93A6BD" }
+                : { backgroundColor: "#142C46", color: "#93A6BD", border: "1px solid rgba(147,166,189,0.15)" }
             }
           >
             Presensi Hari Ini
           </button>
+
           <button
+            type="button"
             onClick={() => setActiveTab("pending_leaves")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm shrink-0"
             style={
               activeTab === "pending_leaves"
                 ? { background: "linear-gradient(135deg, #F0923D, #E0512E)", color: "#0B1D30" }
-                : { backgroundColor: "#142C46", color: "#93A6BD" }
+                : { backgroundColor: "#142C46", color: "#93A6BD", border: "1px solid rgba(147,166,189,0.15)" }
             }
           >
             <span>Persetujuan Izin</span>
@@ -190,22 +195,27 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           <button
+            type="button"
             onClick={() => setShowLegend(!showLegend)}
-            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
             style={{ backgroundColor: "#142C46", color: "#56CCF2", border: "1px solid rgba(86,204,242,0.2)" }}
+            title="Legenda Warna Status"
           >
-            <Info size={12} />
-            <span className="hidden sm:inline">Legenda Warna Status</span>
+            <Info size={14} className="shrink-0" />
+            <span className="hidden sm:inline font-body">Legenda Status</span>
           </button>
+
           <button
+            type="button"
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-transform active:scale-95"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-transform active:scale-95"
             style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
           >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             <span>Refresh</span>
           </button>
         </div>
@@ -348,7 +358,7 @@ export default function AdminDashboard() {
                   type="button"
                   disabled={submittingAction}
                   onClick={() => handleApprove(leave.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-transform active:scale-95"
+                  className="flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-semibold transition-transform active:scale-95 shadow-sm"
                   style={{ backgroundColor: "#61BE7D", color: "#0B1D30" }}
                 >
                   <Check size={14} />
@@ -358,7 +368,7 @@ export default function AdminDashboard() {
                   type="button"
                   disabled={submittingAction}
                   onClick={() => handleOpenDeclineModal(leave.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-transform active:scale-95"
+                  className="flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-semibold transition-transform active:scale-95 shadow-sm"
                   style={{ backgroundColor: "rgba(235,87,87,0.15)", color: "#EB5757", border: "1px solid rgba(235,87,87,0.3)" }}
                 >
                   <X size={14} />

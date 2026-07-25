@@ -3,45 +3,24 @@ import { X, Calendar, AlertCircle } from "lucide-react";
 import { IZIN_TYPES } from "../../constants/dummyData";
 
 export default function IzinModal({ onClose, onSubmit }) {
-  const getTomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split("T")[0];
-  };
-
   const getTodayStr = () => {
     return new Date().toISOString().split("T")[0];
   };
 
   const [type, setType] = useState(IZIN_TYPES[0]);
-  const [startDate, setStartDate] = useState(getTomorrowStr());
-  const [endDate, setEndDate] = useState(getTomorrowStr());
+  const [startDate, setStartDate] = useState(getTodayStr());
+  const [endDate, setEndDate] = useState(getTodayStr());
   const [note, setNote] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleTypeChange = (newType) => {
     setType(newType);
     setErrorMsg("");
-    if (newType === "Sakit") {
-      setStartDate(getTodayStr());
-      setEndDate(getTodayStr());
-    } else {
-      setStartDate(getTomorrowStr());
-      setEndDate(getTomorrowStr());
-    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMsg("");
-
-    const todayStr = getTodayStr();
-
-    // H-1 Validation Rule (Except 'Sakit')
-    if (type !== "Sakit" && startDate <= todayStr) {
-      setErrorMsg("Pengajuan izin selain Sakit wajib diajukan minimal H-1 (mulai besok).");
-      return;
-    }
 
     if (endDate && endDate < startDate) {
       setErrorMsg("Tanggal selesai tidak boleh sebelum tanggal mulai.");
@@ -117,7 +96,6 @@ export default function IzinModal({ onClose, onSubmit }) {
                 if (endDate < e.target.value) setEndDate(e.target.value);
                 setErrorMsg("");
               }}
-              min={type === "Sakit" ? undefined : getTomorrowStr()}
               className="w-full px-3 py-2 rounded-xl text-xs font-body outline-none"
               style={{ backgroundColor: "#1E3A5C", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
             />
