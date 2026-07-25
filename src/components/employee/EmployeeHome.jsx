@@ -5,7 +5,7 @@ import StatusBadge from "../common/StatusBadge";
 import IzinModal from "../modals/IzinModal";
 import { timeStrToMinutes } from "../../utils/timeUtils";
 import { requestLocationPermission, getStreetAddress } from "../../services/location";
-import { postCheckIn, postCheckOut, postIzin, fetchAbsensiHistory } from "../../services/api";
+import { postCheckIn, postCheckOut, postIzin, fetchAbsensiHistory, fetchWorkSettings } from "../../services/api";
 
 const ACTIVE_SESSION_KEY = "absensi_active_checkin_session";
 
@@ -21,6 +21,7 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
   const [locationError, setLocationError] = useState(false);
   const [showIzin, setShowIzin] = useState(false);
   const [recentHistory, setRecentHistory] = useState([]);
+  const [currentSettings, setCurrentSettings] = useState(workSettings || { jamMasuk: "09:00", toleransi: 15 });
 
   const userName = currentUser?.name || "Karyawan";
   const userInitials = currentUser?.initials || userName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -31,14 +32,29 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
     setRecentHistory(data.slice(0, 4));
   };
 
+  // Sync prop changes or fetch fresh work settings
+  useEffect(() => {
+    if (workSettings) {
+      setCurrentSettings(workSettings);
+    }
+  }, [workSettings]);
+
   // 1. Clock Timer (Memperbarui setiap 1 detik secara live)
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // 2. Prompt Location & Restore Session
+  // 2. Prompt Location & Restore Session & Load Settings
   useEffect(() => {
+    async function loadFreshSettings() {
+      const data = await fetchWorkSettings();
+      if (data && (data.jamMasuk || data.toleransi)) {
+        setCurrentSettings(data);
+      }
+    }
+
+    loadFreshSettings();
     requestLocationPermission();
     loadRecentHistory();
 
@@ -62,8 +78,8 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
   const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const jamMasuk = workSettings?.jamMasuk || "09:00";
-  const toleransi = workSettings?.toleransi || 15;
+  const jamMasuk = currentSettings?.jamMasuk || "09:00";
+  const toleransi = currentSettings?.toleransi || 15;
   const batasMasuk = timeStrToMinutes(jamMasuk) + Number(toleransi);
 
   // Live Timer: Hitung durasi jam, menit, dan detik secara real-time setiap detik!
@@ -98,7 +114,7 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
       setLocating(false);
 
       const nowMinutes = currentTimeStamp.getHours() * 60 + currentTimeStamp.getMinutes();
-      const status = nowMinutes > batasMasuk ? "telat" : "hadir";
+      const status = nowMinutes > batasMasuk ? "Late" : "Present";
 
       // Call API Check-in
       const apiRes = await postCheckIn({
@@ -203,8 +219,9 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
         <p className="font-mono font-semibold text-4xl tracking-tight" style={{ color: "#F6F1E7" }}>
           {timeStr}
         </p>
-        <p className="text-xs mt-2" style={{ color: "#93A6BD" }}>
-          Jam masuk: {jamMasuk} · toleransi {toleransi} menit
+        <p className="text-xs mt-2 font-medium" style={{ color: "#93A6BD" }}>
+          Jam masuk: <span className="font-mono font-bold text-white">{jamMasuk}</span> · toleransi{" "}
+          <span className="font-bold text-white">{toleransi}</span> menit
         </p>
       </div>
 

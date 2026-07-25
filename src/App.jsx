@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import LoginScreen from "./components/auth/LoginScreen";
 import EmployeeApp from "./components/employee/EmployeeApp";
 import AdminApp from "./components/admin/AdminApp";
+import { fetchWorkSettings } from "./services/api";
 import "./styles/globals.css";
 
 const SESSION_STORAGE_KEY = "absensi_user_login_session";
@@ -15,7 +16,7 @@ export default function App() {
     jamPulang: "17:30",
   });
 
-  // Restore persistent login session on mount (agar saat refresh/close browser tetap ter-login)
+  // 1. Restore persistent login session on mount
   useEffect(() => {
     try {
       const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -31,6 +32,17 @@ export default function App() {
     }
   }, []);
 
+  // 2. Fetch real work settings from Neon DB
+  useEffect(() => {
+    async function loadSettings() {
+      const data = await fetchWorkSettings();
+      if (data && (data.jamMasuk || data.toleransi)) {
+        setWorkSettings(data);
+      }
+    }
+    loadSettings();
+  }, []);
+
   const handleLogin = (role, userDetails) => {
     const userObj = userDetails || { name: role === "admin" ? "Admin Sasta" : "Karyawan" };
     setCurrentUser(userObj);
@@ -41,7 +53,6 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    // Hapus sesi login dari LocalStorage saat keluar
     localStorage.removeItem(SESSION_STORAGE_KEY);
     setCurrentUser(null);
     setSession(null);
