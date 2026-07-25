@@ -78,6 +78,24 @@ export async function checkTodayLeave(userId, userName) {
   }
 }
 
+export async function fetchExportRecap({ userId, userName, month }) {
+  try {
+    let url = `${API_BASE_URL}/admin/export-recap`;
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", userId);
+    if (userName) params.append("userName", userName);
+    if (month) params.append("month", month);
+    if (params.toString()) url += `?${params.toString()}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.records || [];
+  } catch (err) {
+    console.warn("API Error fetchExportRecap:", err.message);
+    return [];
+  }
+}
+
 export async function postCheckIn(payload) {
   try {
     const res = await fetch(`${API_BASE_URL}/absensi/checkin`, {

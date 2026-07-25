@@ -519,7 +519,7 @@ app.post("/api/absensi/checkout", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 8. API Submit Leave / Izin (With Date Picker & H-1 Notice Validation)
+// 8. API Submit Leave / Izin
 app.post("/api/absensi/izin", async (req, res) => {
   const { userId, userName, type, note, startDate, endDate } = req.body;
   const validUserId = isUUID(userId) ? userId : null;
@@ -528,23 +528,7 @@ app.post("/api/absensi/izin", async (req, res) => {
     return res.status(400).json({ success: false, message: "Tanggal izin wajib dipilih." });
   }
 
-  // H-1 Validation Rule (Except 'Sakit')
   const selectedStart = new Date(startDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (type !== "Sakit" && type !== "sakit") {
-    const minNoticeDate = new Date(today);
-    minNoticeDate.setDate(minNoticeDate.getDate() + 1); // Tomorrow
-
-    if (selectedStart < minNoticeDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Pengajuan izin selain Sakit wajib diajukan minimal H-1 (mulai besok).",
-      });
-    }
-  }
-
   const ket = note ? `${type} — ${note}` : type;
   const finalStart = selectedStart.toISOString();
   const finalEnd = endDate ? new Date(endDate).toISOString() : finalStart;
@@ -648,7 +632,53 @@ app.post("/api/admin/leaves/decline", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 12. API Work Settings
+// 12. API Admin Export Monthly Attendance Recap
+app.get("/api/admin/export-recap", async (req, res) => {
+  const { userId, userName, month } = req.query; // month in format 'YYYY-MM'
+  try {
+    let sql = `SELECT * FROM absensi WHERE 1=1`;
+    const params = [];
+
+    if (userId && isUUID(userId)) {
+      params.push(userId);
+      sql += ` AND user_id = $${params.length}`;
+    } else if (userName && userName !== "semua") {
+      params.push(userName);
+      sql += ` AND user_name = $${params.length}`;
+    }
+
+    if (month) {
+      params.push(`${month}%`);
+      sql += ` AND (to_char(date, 'YYYY-MM') LIKE $${params.length} OR to_char(created_at, 'YYYY-MM') LIKE $${params.length} OR to_char(start_date, 'YYYY-MM') LIKE $${params.length})`;
+    }
+
+    sql += ` ORDER BY date DESC, created_at DESC`;
+
+    const result = await query(sql, params);
+    const records = result.rows.map((row) => ({
+      id: row.id,
+      user_id: row.user_id,
+      user_name: row.user_name || "Karyawan",
+      date: formatDateWIB(row.date || row.start_date || row.created_at),
+      raw_date: row.date || row.created_at,
+      check_in: formatTimeWIB(row.check_in),
+      check_out: formatTimeWIB(row.check_out),
+      status: row.status,
+      duration: row.duration || "—",
+      location: row.location || row.keterangan || "—",
+      keterangan: row.keterangan || "—",
+      approval_status: row.approval_status || "approved",
+      decline_reason: row.decline_reason || "—",
+    }));
+
+    return res.json({ success: true, records });
+  } catch (err) {
+    console.warn("Export recap DB query error:", err.message);
+    return res.json({ success: false, records: [] });
+  }
+});
+
+// 13. API Work Settings
 app.get("/api/settings", async (req, res) => {
   try {
     const result = await query("SELECT * FROM work_settings WHERE id = 1");
