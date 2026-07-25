@@ -127,7 +127,7 @@ export default function EmployeeHistory({ currentUser }) {
                   >
                     <AlertCircle size={15} className="shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold block">Alasan Penolakan Admin:</span>
+                      <span className="font-bold block">Alasan Penolakan:</span>
                       <span className="leading-snug">{h.decline_reason}</span>
                     </div>
                   </div>
