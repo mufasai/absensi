@@ -4,6 +4,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001
  * Service API untuk Autentikasi & Data Real-time Neon Database
  */
 
+export function notifyAbsensiUpdate() {
+  try {
+    localStorage.setItem("absensi_last_update", Date.now().toString());
+    if (typeof window !== "undefined" && window.BroadcastChannel) {
+      const bc = new BroadcastChannel("absensi_channel");
+      bc.postMessage("updated");
+      bc.close();
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("absensi_updated"));
+    }
+  } catch (e) {
+    // Ignore storage quota or SSR errors
+  }
+}
+
 export async function loginUser(email, password) {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -103,7 +119,9 @@ export async function postCheckIn(payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success) notifyAbsensiUpdate();
+    return data;
   } catch (err) {
     console.warn("API Error postCheckIn:", err.message);
     return { success: false, message: err.message };
@@ -117,7 +135,9 @@ export async function postCheckOut(payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success) notifyAbsensiUpdate();
+    return data;
   } catch (err) {
     console.warn("API Error postCheckOut:", err.message);
     return { success: false };
@@ -131,7 +151,9 @@ export async function postIzin(payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success) notifyAbsensiUpdate();
+    return data;
   } catch (err) {
     console.warn("API Error postIzin:", err.message);
     return { success: false, message: err.message };
@@ -156,7 +178,9 @@ export async function approveLeave(id) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success) notifyAbsensiUpdate();
+    return data;
   } catch (err) {
     console.warn("API Error approveLeave:", err.message);
     return { success: false };
@@ -170,7 +194,9 @@ export async function declineLeave(id, reason) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, reason }),
     });
-    return await res.json();
+    const data = await res.json();
+    if (data.success) notifyAbsensiUpdate();
+    return data;
   } catch (err) {
     console.warn("API Error declineLeave:", err.message);
     return { success: false };

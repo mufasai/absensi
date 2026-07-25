@@ -85,16 +85,42 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData(false);
 
-    const interval = setInterval(() => {
-      loadData(true);
-    }, 3000);
+    // Event 1: Storage Event (Lintas Tab / Window Browser)
+    const handleStorage = (e) => {
+      if (e.key === "absensi_last_update") {
+        loadData(true);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
 
-    const handleFocus = () => loadData(true);
-    window.addEventListener("focus", handleFocus);
+    // Event 2: Custom Event Listener (Dalam Window Yang Sama)
+    const handleCustomUpdate = () => loadData(true);
+    window.addEventListener("absensi_updated", handleCustomUpdate);
+
+    // Event 3: Visibility Change (Saat Admin Buka / Kembali ke Tab)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadData(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Event 4: Broadcast Channel (Fitur Modern Browser Real-Time)
+    let bc;
+    if (typeof window !== "undefined" && window.BroadcastChannel) {
+      bc = new BroadcastChannel("absensi_channel");
+      bc.onmessage = (msg) => {
+        if (msg.data === "updated") {
+          loadData(true);
+        }
+      };
+    }
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("absensi_updated", handleCustomUpdate);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (bc) bc.close();
     };
   }, []);
 

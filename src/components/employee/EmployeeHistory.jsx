@@ -20,18 +20,42 @@ export default function EmployeeHistory({ currentUser }) {
   useEffect(() => {
     loadHistory(false);
 
-    // Auto-fetch interval every 3 seconds for instant real-time sync
-    const interval = setInterval(() => {
-      loadHistory(true);
-    }, 3000);
+    // Event 1: Storage Event (Lintas Tab / Window Browser)
+    const handleStorage = (e) => {
+      if (e.key === "absensi_last_update") {
+        loadHistory(true);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
 
-    // Refetch when tab gets focus
-    const handleFocus = () => loadHistory(true);
-    window.addEventListener("focus", handleFocus);
+    // Event 2: Custom Event Listener (Dalam Window Yang Sama)
+    const handleCustomUpdate = () => loadHistory(true);
+    window.addEventListener("absensi_updated", handleCustomUpdate);
+
+    // Event 3: Visibility Change (Saat Karyawan Buka / Kembali ke Tab)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadHistory(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Event 4: Broadcast Channel (Fitur Modern Browser Real-Time)
+    let bc;
+    if (typeof window !== "undefined" && window.BroadcastChannel) {
+      bc = new BroadcastChannel("absensi_channel");
+      bc.onmessage = (msg) => {
+        if (msg.data === "updated") {
+          loadHistory(true);
+        }
+      };
+    }
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("absensi_updated", handleCustomUpdate);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (bc) bc.close();
     };
   }, [currentUser]);
 
