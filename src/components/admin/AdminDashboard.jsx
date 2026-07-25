@@ -363,38 +363,36 @@ export default function AdminDashboard() {
       </div>
 
       {/* Row 2: Action Controls Bar (Export Excel, Legenda Status & Refresh) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setExportModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all shadow-sm"
-            style={{ backgroundColor: "rgba(97,190,125,0.15)", color: "#61BE7D", border: "1px solid rgba(97,190,125,0.3)" }}
-          >
-            <FileSpreadsheet size={14} className="shrink-0" />
-            <span>Export Excel</span>
-          </button>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setExportModalOpen(true)}
+          className="flex items-center justify-center gap-1 sm:gap-1.5 text-xs font-semibold px-2 sm:px-3 py-2.5 rounded-xl transition-all shadow-sm truncate"
+          style={{ backgroundColor: "rgba(97,190,125,0.15)", color: "#61BE7D", border: "1px solid rgba(97,190,125,0.3)" }}
+        >
+          <FileSpreadsheet size={14} className="shrink-0" />
+          <span className="truncate">Export Excel</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setShowLegend(!showLegend)}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all"
-            style={{ backgroundColor: "#142C46", color: "#56CCF2", border: "1px solid rgba(86,204,242,0.2)" }}
-          >
-            <Info size={14} className="shrink-0" />
-            <span>Legenda Status</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowLegend(!showLegend)}
+          className="flex items-center justify-center gap-1 sm:gap-1.5 text-xs font-semibold px-2 sm:px-3 py-2.5 rounded-xl transition-all truncate"
+          style={{ backgroundColor: "#142C46", color: "#56CCF2", border: "1px solid rgba(86,204,242,0.2)" }}
+        >
+          <Info size={14} className="shrink-0" />
+          <span className="truncate">Legenda Status</span>
+        </button>
 
         <button
           type="button"
           onClick={loadData}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-transform active:scale-95 ml-auto"
+          className="flex items-center justify-center gap-1 sm:gap-1.5 text-xs font-semibold px-2 sm:px-3 py-2.5 rounded-xl transition-transform active:scale-95 truncate"
           style={{ backgroundColor: "#142C46", color: "#F6F1E7", border: "1px solid rgba(147,166,189,0.15)" }}
         >
-          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-          <span>Refresh Data</span>
+          <RefreshCw size={13} className={`shrink-0 ${loading ? "animate-spin" : ""}`} />
+          <span className="truncate">Refresh Data</span>
         </button>
       </div>
 
