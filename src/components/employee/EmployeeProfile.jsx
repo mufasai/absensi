@@ -47,8 +47,8 @@ export default function EmployeeProfile({ currentUser, onUpdateUser, onLogout })
     loadStats();
   }, [currentUser]);
 
-  // Client-side image compression helper (max 400px width/height, ~30-60KB Base64)
-  const compressImage = (file) => {
+  // Smart iterative image compressor: target size <= 500KB (max 450KB for safe headroom)
+  const compressImageToTargetSize = (file, maxSizeBytes = 450 * 1024) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -56,30 +56,55 @@ export default function EmployeeProfile({ currentUser, onUpdateUser, onLogout })
         const img = new Image();
         img.src = event.target.result;
         img.onload = () => {
+          let quality = 0.85;
+          let maxDimension = 600;
+
           const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 400;
-          const MAX_HEIGHT = 400;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
           const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          resolve(dataUrl);
+
+          let dataUrl = "";
+          let attempts = 0;
+
+          do {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxDimension) {
+                height *= maxDimension / width;
+                width = maxDimension;
+              }
+            } else {
+              if (height > maxDimension) {
+                width *= maxDimension / height;
+                height = maxDimension;
+              }
+            }
+
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            dataUrl = canvas.toDataURL("image/jpeg", quality);
+
+            const estimatedSizeBytes = Math.round((dataUrl.length * 3) / 4);
+
+            if (estimatedSizeBytes <= maxSizeBytes || attempts > 10) {
+              break;
+            }
+
+            // Lower quality and dimensions step by step if file is larger than target size
+            quality -= 0.1;
+            if (quality < 0.35) {
+              quality = 0.7;
+              maxDimension = Math.round(maxDimension * 0.75);
+            }
+            attempts++;
+          } while (attempts <= 10);
+
+          const finalSizeBytes = Math.round((dataUrl.length * 3) / 4);
+          resolve({ dataUrl, finalSizeBytes });
         };
         img.onerror = (err) => reject(err);
       };
@@ -98,9 +123,23 @@ export default function EmployeeProfile({ currentUser, onUpdateUser, onLogout })
 
     try {
       setErrorMsg("");
-      const compressedDataUrl = await compressImage(file);
+      const originalSizeStr =
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(file.size / 1024)} KB`;
+
+      // Auto compress photo to under 500KB (max target 450KB)
+      const { dataUrl: compressedDataUrl, finalSizeBytes } = await compressImageToTargetSize(file, 450 * 1024);
+
+      const finalSizeStr =
+        finalSizeBytes > 1024 * 1024
+          ? `${(finalSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(finalSizeBytes / 1024)} KB`;
+
       setAvatarUrl(compressedDataUrl);
-      setSuccessMsg("Foto profil berhasil dipilih. Klik 'Simpan Perubahan' untuk memperbarui.");
+      setSuccessMsg(
+        `Foto berhasil dikompresi dari ${originalSizeStr} menjadi ${finalSizeStr}! Klik "Simpan Perubahan" untuk menyimpan.`
+      );
     } catch (err) {
       console.error("Gagal memproses gambar:", err);
       setErrorMsg("Gagal memproses file foto profil.");
