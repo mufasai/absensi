@@ -15,7 +15,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(cors());
-app.use(express.json());
+// Increased body limit to 10MB to support profile avatar photo upload via Base64
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // UUID Helper Validator
 const isUUID = (str) =>
@@ -81,8 +83,9 @@ async function initDatabase() {
       console.log("⚡ Skema Database PostgreSQL Neon Berhasil Dibuat/Diverifikasi.");
     }
 
-    // Auto upgrade status column length & new columns
+    // Auto upgrade status & avatar_url column
     await query("ALTER TABLE absensi ALTER COLUMN status TYPE VARCHAR(100);");
+    await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;");
     await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ;");
     await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;");
     await query("ALTER TABLE absensi ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'approved';");
@@ -149,6 +152,7 @@ app.post("/api/auth/login", async (req, res) => {
           email: user.email,
           role: user.role,
           initials: user.initials || user.name.substring(0, 2).toUpperCase(),
+          avatar_url: user.avatar_url || null,
         },
       });
     }
@@ -180,6 +184,7 @@ app.post("/api/auth/login", async (req, res) => {
       email: localUser.email,
       role: localUser.role,
       initials: localUser.initials,
+      avatar_url: localUser.avatar_url || null,
     },
   });
 });
@@ -211,7 +216,7 @@ app.post("/api/auth/register", async (req, res) => {
     const result = await query(
       `INSERT INTO users (name, email, password_hash, role, initials, employee_code)
        VALUES ($1, $2, $3, 'employee', $4, $5)
-       RETURNING id, name, email, role, initials, employee_code`,
+       RETURNING id, name, email, role, initials, employee_code, avatar_url`,
       [name.trim(), cleanEmail, hash, initials, empCode]
     );
 
@@ -232,6 +237,7 @@ app.post("/api/auth/register", async (req, res) => {
       password_hash: hash,
       role: "employee",
       initials: initials,
+      avatar_url: null,
     };
 
     LOCAL_USERS_STORE.push(newLocalUser);
@@ -241,13 +247,81 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// 3. API Admin Dashboard Real Data
+// 3. API Edit User Profile (Name, Email, Avatar Photo)
+app.put("/api/users/profile", async (req, res) => {
+  const { userId, name, email, avatarUrl } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "ID Pengguna wajib dikirim." });
+  }
+  if (!name || !email) {
+    return res.status(400).json({ success: false, message: "Nama dan Email wajib diisi." });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanName = name.trim();
+  const initials = cleanName
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  try {
+    if (isUUID(userId)) {
+      // Check duplicate email
+      const checkEmail = await query("SELECT id FROM users WHERE email = $1 AND id != $2", [cleanEmail, userId]);
+      if (checkEmail.rows.length > 0) {
+        return res.status(400).json({ success: false, message: "Email ini sudah digunakan oleh pengguna lain." });
+      }
+
+      const result = await query(
+        `UPDATE users 
+         SET name = $1, email = $2, avatar_url = $3, initials = $4 
+         WHERE id = $5 
+         RETURNING id, name, email, role, initials, avatar_url, employee_code`,
+        [cleanName, cleanEmail, avatarUrl || null, initials, userId]
+      );
+
+      if (result.rows.length > 0) {
+        const updatedUser = result.rows[0];
+        // Also sync name in absensi history
+        await query("UPDATE absensi SET user_name = $1 WHERE user_id = $2", [cleanName, userId]);
+        console.log("✅ Profil pengguna berhasil diperbarui di Neon DB:", updatedUser.name);
+        return res.json({ success: true, user: updatedUser });
+      }
+    }
+  } catch (err) {
+    console.warn("📌 Error Update Profil DB:", err.message);
+  }
+
+  // Fallback memory store update
+  const localUser = LOCAL_USERS_STORE.find((u) => u.id === userId || u.email === cleanEmail);
+  if (localUser) {
+    localUser.name = cleanName;
+    localUser.email = cleanEmail;
+    localUser.avatar_url = avatarUrl || null;
+    localUser.initials = initials;
+    return res.json({ success: true, user: localUser });
+  }
+
+  const fallbackUser = {
+    id: userId,
+    name: cleanName,
+    email: cleanEmail,
+    avatar_url: avatarUrl || null,
+    initials,
+  };
+  return res.json({ success: true, user: fallbackUser });
+});
+
+// 4. API Admin Dashboard Real Data
 app.get("/api/admin/dashboard", async (req, res) => {
   let dbUsers = [];
   let dbAbsensi = [];
 
   try {
-    const usersResult = await query("SELECT id, name, email, role, initials FROM users ORDER BY name ASC");
+    const usersResult = await query("SELECT id, name, email, role, initials, avatar_url FROM users ORDER BY name ASC");
     dbUsers = usersResult.rows;
 
     const todayAbsensiResult = await query(
@@ -279,6 +353,7 @@ app.get("/api/admin/dashboard", async (req, res) => {
           keterangan: absensi.keterangan,
           approval_status: absensi.approval_status || "approved",
           decline_reason: absensi.decline_reason,
+          avatar_url: user.avatar_url,
         };
       } else {
         return {
@@ -290,6 +365,7 @@ app.get("/api/admin/dashboard", async (req, res) => {
           location: null,
           keterangan: "Belum Hadir",
           approval_status: "approved",
+          avatar_url: user.avatar_url,
         };
       }
     });
@@ -306,7 +382,7 @@ app.get("/api/admin/dashboard", async (req, res) => {
   });
 });
 
-// 4. API Employee Attendance History
+// 5. API Employee Attendance History
 app.get("/api/absensi/history", async (req, res) => {
   const { userId, userName } = req.query;
   let historyRecords = [];
@@ -356,7 +432,7 @@ app.get("/api/absensi/history", async (req, res) => {
   return res.json({ success: true, history: formattedHistory });
 });
 
-// 5. API Check-In Guard & Status
+// 6. API Check-In Guard & Status
 app.get("/api/absensi/today-leave", async (req, res) => {
   const { userId, userName } = req.query;
   try {
@@ -398,7 +474,7 @@ app.get("/api/absensi/today-leave", async (req, res) => {
   return res.json({ hasLeaveToday: false });
 });
 
-// 6. API Check-In
+// 7. API Check-In
 app.post("/api/absensi/checkin", async (req, res) => {
   const { userId, userName, status, location, latitude, longitude } = req.body;
   const validUserId = isUUID(userId) ? userId : null;
@@ -477,7 +553,7 @@ app.post("/api/absensi/checkin", async (req, res) => {
   }
 });
 
-// 7. API Check-Out
+// 8. API Check-Out
 app.post("/api/absensi/checkout", async (req, res) => {
   const { absensiId, userId, duration } = req.body;
   const validAbsensiId = isUUID(absensiId) ? absensiId : null;
@@ -519,7 +595,7 @@ app.post("/api/absensi/checkout", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 8. API Submit Leave / Izin
+// 9. API Submit Leave / Izin
 app.post("/api/absensi/izin", async (req, res) => {
   const { userId, userName, type, note, startDate, endDate } = req.body;
   const validUserId = isUUID(userId) ? userId : null;
@@ -565,7 +641,7 @@ app.post("/api/absensi/izin", async (req, res) => {
   }
 });
 
-// 9. API Admin Get Pending Leave Requests
+// 10. API Admin Get Pending Leave Requests
 app.get("/api/admin/leaves", async (req, res) => {
   try {
     const result = await query(
@@ -579,7 +655,7 @@ app.get("/api/admin/leaves", async (req, res) => {
   }
 });
 
-// 10. API Admin Approve Leave Request
+// 11. API Admin Approve Leave Request
 app.post("/api/admin/leaves/approve", async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ success: false, message: "ID absensi wajib dikirim." });
@@ -605,7 +681,7 @@ app.post("/api/admin/leaves/approve", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 11. API Admin Decline Leave Request (With Decline Reason)
+// 12. API Admin Decline Leave Request (With Decline Reason)
 app.post("/api/admin/leaves/decline", async (req, res) => {
   const { id, reason } = req.body;
   if (!id) return res.status(400).json({ success: false, message: "ID absensi wajib dikirim." });
@@ -632,7 +708,7 @@ app.post("/api/admin/leaves/decline", async (req, res) => {
   return res.json({ success: true, absensi: localItem || null });
 });
 
-// 12. API Admin Export Monthly Attendance Recap
+// 13. API Admin Export Monthly Attendance Recap
 app.get("/api/admin/export-recap", async (req, res) => {
   const { userId, userName, month } = req.query; // month in format 'YYYY-MM'
   try {
@@ -678,7 +754,7 @@ app.get("/api/admin/export-recap", async (req, res) => {
   }
 });
 
-// 13. API Work Settings
+// 14. API Work Settings
 app.get("/api/settings", async (req, res) => {
   try {
     const result = await query("SELECT * FROM work_settings WHERE id = 1");

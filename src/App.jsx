@@ -52,6 +52,11 @@ export default function App() {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ role, user: userObj }));
   };
 
+  const handleUpdateUser = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ role: session, user: updatedUser }));
+  };
+
   const handleLogout = () => {
     localStorage.removeItem(SESSION_STORAGE_KEY);
     setCurrentUser(null);
@@ -65,6 +70,7 @@ export default function App() {
         <EmployeeApp
           workSettings={workSettings}
           currentUser={currentUser}
+          onUpdateUser={handleUpdateUser}
           onLogout={handleLogout}
         />
       )}
@@ -73,6 +79,7 @@ export default function App() {
           workSettings={workSettings}
           setWorkSettings={setWorkSettings}
           currentUser={currentUser}
+          onUpdateUser={handleUpdateUser}
           onLogout={handleLogout}
         />
       )}

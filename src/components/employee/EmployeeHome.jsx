@@ -261,7 +261,7 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
             {userName.split(" ")[0]} 👋
           </p>
         </div>
-        <Avatar initials={userInitials} size={44} />
+        <Avatar src={currentUser?.avatar_url} initials={userInitials} size={44} />
       </div>
 
       {/* Clock Card */}

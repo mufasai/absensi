@@ -48,6 +48,20 @@ export async function registerUser(name, email, password) {
   return data;
 }
 
+export async function updateUserProfile({ userId, name, email, avatarUrl }) {
+  const res = await fetch(`${API_BASE_URL}/users/profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, name, email, avatarUrl }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Gagal memperbarui profil.");
+  }
+  return data;
+}
+
 export async function fetchAdminDashboard() {
   try {
     const res = await fetch(`${API_BASE_URL}/admin/dashboard`);

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(20) DEFAULT 'employee',
   initials VARCHAR(5),
   employee_code VARCHAR(50) UNIQUE,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -35,7 +36,7 @@ CREATE TABLE IF NOT EXISTS absensi (
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   check_in TIMESTAMPTZ,
   check_out TIMESTAMPTZ,
-  status VARCHAR(50) NOT NULL, -- 'Present', 'Late', 'Cuti Tahunan', 'Sakit', 'Work From Anywhere/Home', 'Out of Office (Work)', 'belum_absen'
+  status VARCHAR(100) NOT NULL,
   duration VARCHAR(30),
   location TEXT,
   latitude NUMERIC(10, 7),
@@ -44,20 +45,7 @@ CREATE TABLE IF NOT EXISTS absensi (
   is_active BOOLEAN DEFAULT TRUE,
   start_date TIMESTAMPTZ,
   end_date TIMESTAMPTZ,
-  approval_status VARCHAR(20) DEFAULT 'approved', -- 'pending', 'approved', 'declined'
+  approval_status VARCHAR(20) DEFAULT 'approved',
   decline_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- Auto Add New Columns to Absensi if upgrading schema
-ALTER TABLE absensi ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ;
-ALTER TABLE absensi ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
-ALTER TABLE absensi ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'approved';
-ALTER TABLE absensi ADD COLUMN IF NOT EXISTS decline_reason TEXT;
-
--- Sample Initial Users
-INSERT INTO users (name, email, password_hash, role, initials, employee_code)
-VALUES 
-  ('Dimas Prayoga', 'dimas@perusahaan.com', '$2a$10$w8T0Uv7l7.8R7zQ7Jj6uO.Xv0Yp7K7p6m0.V8U7m0V8U7m0V8U7m0', 'employee', 'DP', 'EMP-2291'),
-  ('Admin Sasta', 'admin@sasta.com', '$2a$10$w8T0Uv7l7.8R7zQ7Jj6uO.Xv0Yp7K7p6m0.V8U7m0V8U7m0V8U7m0', 'admin', 'AS', 'ADM-0001')
-ON CONFLICT (email) DO NOTHING;

@@ -497,7 +497,7 @@ export default function AdminDashboard() {
                   style={{ borderTop: i === 0 ? "none" : "1px solid rgba(147,166,189,0.08)" }}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Avatar initials={t.name.split(" ").map((n) => n[0]).slice(0, 2).join("")} size={34} />
+                    <Avatar src={t.avatar_url} initials={t.name.split(" ").map((n) => n[0]).slice(0, 2).join("")} size={34} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: "#F6F1E7" }}>
                         {t.name}

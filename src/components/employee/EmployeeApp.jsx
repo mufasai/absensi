@@ -4,7 +4,7 @@ import EmployeeHome from "./EmployeeHome";
 import EmployeeHistory from "./EmployeeHistory";
 import EmployeeProfile from "./EmployeeProfile";
 
-export default function EmployeeApp({ currentUser, workSettings, onLogout }) {
+export default function EmployeeApp({ currentUser, workSettings, onUpdateUser, onLogout }) {
   const [tab, setTab] = useState("home");
 
   const tabs = [
@@ -18,7 +18,9 @@ export default function EmployeeApp({ currentUser, workSettings, onLogout }) {
       <div className="max-w-md mx-auto pb-24">
         {tab === "home" && <EmployeeHome currentUser={currentUser} workSettings={workSettings} />}
         {tab === "history" && <EmployeeHistory currentUser={currentUser} />}
-        {tab === "profile" && <EmployeeProfile currentUser={currentUser} onLogout={onLogout} />}
+        {tab === "profile" && (
+          <EmployeeProfile currentUser={currentUser} onUpdateUser={onUpdateUser} onLogout={onLogout} />
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 flex justify-center" style={{ backgroundColor: "#0B1D30" }}>
