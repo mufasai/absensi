@@ -68,11 +68,19 @@ export default function EmployeeHome({ currentUser, workSettings, onAddHistory }
       if (savedSession) {
         const sessionData = JSON.parse(savedSession);
         if (sessionData && sessionData.checkInTime) {
-          setCheckedIn(true);
-          setCheckInTime(new Date(sessionData.checkInTime));
-          setCheckInStatus(sessionData.status || "hadir");
-          setLocation(sessionData.location || "Lokasi Kantor");
-          setCurrentAbsensiId(sessionData.absensiId || null);
+          const sessionDate = new Date(sessionData.checkInTime).toLocaleDateString("en-CA");
+          const todayDate = new Date().toLocaleDateString("en-CA");
+
+          if (sessionDate === todayDate) {
+            setCheckedIn(true);
+            setCheckInTime(new Date(sessionData.checkInTime));
+            setCheckInStatus(sessionData.status || "hadir");
+            setLocation(sessionData.location || "Lokasi Kantor");
+            setCurrentAbsensiId(sessionData.absensiId || null);
+          } else {
+            // Hari sudah berganti -> otomatis reset untuk hari baru
+            localStorage.removeItem(ACTIVE_SESSION_KEY);
+          }
         }
       }
     } catch (err) {
