@@ -325,7 +325,10 @@ app.get("/api/admin/dashboard", async (req, res) => {
     dbUsers = usersResult.rows;
 
     const todayAbsensiResult = await query(
-      `SELECT * FROM absensi WHERE date = CURRENT_DATE ORDER BY created_at DESC`
+      `SELECT * FROM absensi 
+       WHERE date = CURRENT_DATE 
+          OR (start_date::date <= CURRENT_DATE AND end_date::date >= CURRENT_DATE AND approval_status = 'approved')
+       ORDER BY created_at DESC`
     );
     dbAbsensi = todayAbsensiResult.rows;
   } catch (err) {
@@ -391,16 +394,16 @@ app.get("/api/absensi/history", async (req, res) => {
     let result;
     if (userId && isUUID(userId)) {
       result = await query(
-        `SELECT * FROM absensi WHERE user_id = $1 ORDER BY date DESC, created_at DESC LIMIT 30`,
+        `SELECT * FROM absensi WHERE user_id = $1 ORDER BY date DESC, created_at DESC LIMIT 60`,
         [userId]
       );
     } else if (userName) {
       result = await query(
-        `SELECT * FROM absensi WHERE user_name = $1 ORDER BY date DESC, created_at DESC LIMIT 30`,
+        `SELECT * FROM absensi WHERE user_name = $1 ORDER BY date DESC, created_at DESC LIMIT 60`,
         [userName]
       );
     } else {
-      result = await query(`SELECT * FROM absensi ORDER BY date DESC, created_at DESC LIMIT 30`);
+      result = await query(`SELECT * FROM absensi ORDER BY date DESC, created_at DESC LIMIT 60`);
     }
 
     if (result && result.rows) {
@@ -655,29 +658,105 @@ app.get("/api/admin/leaves", async (req, res) => {
   }
 });
 
-// 11. API Admin Approve Leave Request
+// 11. API Admin Approve Leave Request (Auto-expands every day in date range)
 app.post("/api/admin/leaves/approve", async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ success: false, message: "ID absensi wajib dikirim." });
 
   try {
     if (isUUID(id)) {
-      const result = await query(
-        `UPDATE absensi SET approval_status = 'approved' WHERE id = $1 RETURNING *`,
-        [id]
-      );
-      if (result.rows.length > 0) {
-        return res.json({ success: true, absensi: result.rows[0] });
+      const leaveCheck = await query(`SELECT * FROM absensi WHERE id = $1`, [id]);
+      if (leaveCheck.rows.length > 0) {
+        const leaveRow = leaveCheck.rows[0];
+        await query(`UPDATE absensi SET approval_status = 'approved' WHERE id = $1`, [id]);
+
+        // Auto expand every day in date range (e.g. Monday to Friday)
+        if (leaveRow.start_date && leaveRow.end_date) {
+          let curr = new Date(leaveRow.start_date);
+          const end = new Date(leaveRow.end_date);
+          curr.setHours(0, 0, 0, 0);
+          end.setHours(0, 0, 0, 0);
+
+          while (curr <= end) {
+            const dateStr = curr.toISOString().split("T")[0];
+            const existCheck = await query(
+              `SELECT id FROM absensi WHERE user_id = $1 AND date = $2::date`,
+              [leaveRow.user_id, dateStr]
+            );
+
+            if (existCheck.rows.length === 0) {
+              await query(
+                `INSERT INTO absensi (user_id, user_name, date, status, keterangan, is_active, start_date, end_date, approval_status)
+                 VALUES ($1, $2, $3::date, $4, $5, FALSE, $6, $7, 'approved')`,
+                [
+                  leaveRow.user_id,
+                  leaveRow.user_name,
+                  dateStr,
+                  leaveRow.status,
+                  leaveRow.keterangan,
+                  leaveRow.start_date,
+                  leaveRow.end_date,
+                ]
+              );
+            } else {
+              await query(
+                `UPDATE absensi SET status = $1, keterangan = $2, approval_status = 'approved' WHERE user_id = $3 AND date = $4::date`,
+                [leaveRow.status, leaveRow.keterangan, leaveRow.user_id, dateStr]
+              );
+            }
+
+            curr.setDate(curr.getDate() + 1);
+          }
+        }
+
+        console.log("✅ Leave approved and expanded for all days in date range:", id);
+        return res.json({ success: true, absensi: leaveRow });
       }
     }
   } catch (err) {
     console.warn("Approve leave DB error:", err.message);
   }
 
+  // Memory store fallback
   const localItem = LOCAL_ABSENSI_STORE.find((a) => a.id === id);
   if (localItem) {
     localItem.approval_status = "approved";
+
+    if (localItem.start_date && localItem.end_date) {
+      let curr = new Date(localItem.start_date);
+      const end = new Date(localItem.end_date);
+      curr.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      while (curr <= end) {
+        const dateStr = curr.toISOString().split("T")[0];
+        const existing = LOCAL_ABSENSI_STORE.find(
+          (a) => (a.user_id === localItem.user_id || a.user_name === localItem.user_name) && a.date === dateStr
+        );
+
+        if (!existing) {
+          LOCAL_ABSENSI_STORE.push({
+            id: "izin-day-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+            user_id: localItem.user_id,
+            user_name: localItem.user_name,
+            date: dateStr,
+            status: localItem.status,
+            keterangan: localItem.keterangan,
+            is_active: false,
+            start_date: localItem.start_date,
+            end_date: localItem.end_date,
+            approval_status: "approved",
+          });
+        } else {
+          existing.status = localItem.status;
+          existing.approval_status = "approved";
+        }
+
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
   }
+
   return res.json({ success: true, absensi: localItem || null });
 });
 
